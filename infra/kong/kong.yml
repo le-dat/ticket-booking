@@ -1,0 +1,52 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  # Route tới Auth Service
+  - name: auth-service
+    url: http://auth-service:3001
+    routes:
+      - name: auth-routes
+        paths:
+          - /api/v1/auth
+        strip_path: false
+
+  # Route tới Product Catalog Service (kèm Rate Limiting)
+  - name: product-service
+    url: http://product-service:8080
+    routes:
+      - name: product-routes
+        paths:
+          - /api/v1/products
+        strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: local
+
+  # Route tới Order Service
+  - name: order-service
+    url: http://order-service:3002
+    routes:
+      - name: order-routes
+        paths:
+          - /api/v1/orders
+        strip_path: false
+
+  # Route tới Payment Service
+  - name: payment-service
+    url: http://payment-service:3003
+    routes:
+      - name: payment-routes
+        paths:
+          - /api/v1/payments
+        strip_path: false
+
+plugins:
+  # Gắn mã truy vết Request-ID cho mọi luồng gọi API
+  - name: correlation-id
+    config:
+      header_name: X-Request-ID
+      generator: uuid
+      echo_downstream: true

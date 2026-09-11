@@ -1,0 +1,18 @@
+{
+  "name": "ecommerce-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Enterprise Polyglot Microservices E-Commerce Monorepo",
+  "scripts": {
+    "infra:up": "docker compose -f infra/docker/docker-compose.infra.yml --profile all up -d",
+    "infra:down": "docker compose -f infra/docker/docker-compose.infra.yml --profile all down",
+    "infra:test": "bash infra/scripts/smoke-test-infra.sh",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0"
+  },
+  "packageManager": "pnpm@9.0.0"
+}

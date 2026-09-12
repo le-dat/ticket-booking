@@ -76,26 +76,23 @@ services:
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:29092
-      KAFKA_ADVERTISED_LISTENERS:
-PLAINTEXT://kafka:9092,EXTERNAL://${KAFKA_EXTERNAL_HOST:-localhost}:29092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP:
-CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:29092"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092,EXTERNAL://${KAFKA_EXTERNAL_HOST:-localhost}:29092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT"
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_KRAFT_CLUSTER_ID: ${KAFKA_CLUSTER_ID:-4L622nShTUiBENbYWuzBDg}
+      KAFKA_KRAFT_CLUSTER_ID: "${KAFKA_CLUSTER_ID:-4L622nShTUiBENbYWuzBDg}"
       KAFKA_HEAP_OPTS: "-Xms512M -Xmx512M"
     ports:
       - "127.0.0.1:29092:29092"
     volumes:
       - kafka_data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server
-localhost:9092 || exit 1"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 5
@@ -119,7 +116,7 @@ localhost:9092 || exit 1"]
 
   # 4. Kong API Gateway DB-less
   kong:
-    image: kong:3.6-alpine
+    image: kong:3.6
     container_name: ecom-kong
     restart: unless-stopped
     networks:
@@ -127,7 +124,7 @@ localhost:9092 || exit 1"]
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /opt/kong/kong.yml
-      KONG_ADMIN_LISTEN: 127.0.0.1:8001
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
       KONG_PROXY_LISTEN: 0.0.0.0:8000
     ports:
       - "8000:8000"

@@ -1,0 +1,34 @@
+syntax = "proto3"; // LÝ DO: Khai báo cú pháp Proto3 chuẩn mới nhất của Google gRPC
+
+package product; // LÝ DO: Tạo namespace để tránh đụng độ tên giữa các file proto khác
+
+// Service định nghĩa các hàm RPC mà product-service sẽ lắng nghe và phục vụ
+service ProductService {
+  // Hàm gRPC kiểm tra kho và giá đồng bộ
+  // LÝ DO: Dùng gRPC binary truyền qua HTTP/2 giúp latency < 5ms (thay vì REST 50-100ms)
+  rpc ValidateAndCheckStock (ValidateStockRequest) returns (ValidateStockResponse);
+}
+
+// Struct gửi từ order-service sang
+message StockItem {
+  string sku_id = 1;      // Tag = 1: ID sản phẩm/SKU
+  int32 quantity = 2;     // Tag = 2: Số lượng mua
+}
+
+message ValidateStockRequest {
+  repeated StockItem items = 1; // repeated = Mảng (Array) các mặt hàng cần kiểm tra tồn kho
+}
+
+// Struct thông tin trả về sau khi kiểm tra DB/Redis kho
+message ValidatedItem {
+  string sku_id = 1;           // Mã SKU
+  int32 quantity = 2;          // Số lượng
+  int64 price_in_cents = 3;    // LÝ DO: Lưu tiền dạng int (Cents) để tránh lỗi làm tròn số thực (floating point)
+  bool is_available = 4;       // true nếu kho đủ hàng, false nếu hết hàng
+}
+
+message ValidateStockResponse {
+  bool is_valid = 1;           // true nếu TOÀN BỘ đơn hàng đủ stock
+  repeated ValidatedItem items = 2; // Chi tiết từng item
+  string error_message = 3;    // Thông báo lỗi nếu is_valid = false (VD: "SKU-101 hết hàng")
+}

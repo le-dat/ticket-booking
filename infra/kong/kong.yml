@@ -2,7 +2,7 @@ _format_version: "3.0"
 _transform: true
 
 services:
-  # Route tới Auth Service
+  # 1. Auth Service (NestJS - Port 3001)
   - name: auth-service
     url: http://auth-service:3001
     routes:
@@ -11,40 +11,54 @@ services:
           - /api/v1/auth
         strip_path: false
 
-  # Route tới Product Catalog Service (kèm Rate Limiting)
-  - name: product-service
-    url: http://product-service:8080
+  # 2. Event & Seat Map Service (Go - Port 3002)
+  - name: event-service
+    url: http://event-service:3002
     routes:
-      - name: product-routes
+      - name: event-routes
         paths:
-          - /api/v1/products
+          - /api/v1/events
         strip_path: false
     plugins:
       - name: rate-limiting
         config:
-          minute: 100
+          minute: 300
           policy: local
 
-  # Route tới Order Service
-  - name: order-service
-    url: http://order-service:3002
+  # 3. Booking & Hold Engine Service (Go - Port 3003)
+  - name: booking-service
+    url: http://booking-service:3003
     routes:
-      - name: order-routes
+      - name: booking-routes
         paths:
-          - /api/v1/orders
+          - /api/v1/bookings
         strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 120
+          policy: local
 
-  # Route tới Payment Service
+  # 4. Payment Service (FastAPI - Port 3004)
   - name: payment-service
-    url: http://payment-service:3003
+    url: http://payment-service:3004
     routes:
       - name: payment-routes
         paths:
           - /api/v1/payments
         strip_path: false
 
+  # 5. Notification & WebSocket Gateway (NestJS - Port 3005)
+  - name: notification-service
+    url: http://notification-service:3005
+    routes:
+      - name: notification-routes
+        paths:
+          - /api/v1/notifications
+        strip_path: false
+
 plugins:
-  # Gắn mã truy vết Request-ID cho mọi luồng gọi API
+  # Gắn mã truy vết X-Request-ID (Correlation-ID) cho mọi luồng gọi qua Gateway
   - name: correlation-id
     config:
       header_name: X-Request-ID

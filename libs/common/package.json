@@ -1,5 +1,5 @@
 {
-  "name": "@ecommerce/common",
+  "name": "@ticket-booking/common",
   "version": "1.0.0",
   "private": true,
   "main": "./dist/index.js",

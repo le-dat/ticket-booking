@@ -1,8 +1,8 @@
 {
-  "name": "ecommerce-platform",
+  "name": "ticket-booking-platform",
   "version": "1.0.0",
   "private": true,
-  "description": "Enterprise Polyglot Microservices E-Commerce Monorepo",
+  "description": "Enterprise Polyglot Microservices Ticket Booking Monorepo",
   "scripts": {
     "infra:up": "docker compose -f infra/docker/docker-compose.infra.yml --profile all up -d",
     "infra:down": "docker compose -f infra/docker/docker-compose.infra.yml --profile all down",

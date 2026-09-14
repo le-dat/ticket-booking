@@ -1,3 +1,3 @@
-export * from './order-events';
+export * from './booking-events';
 export * from './payment-events';
-export * from './inventory-events';
+export * from './notification-events';

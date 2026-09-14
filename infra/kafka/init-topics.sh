@@ -19,11 +19,10 @@ until /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server "$BOOTSTRAP
     sleep 2
 done
 
-echo "Kafka đã sẵn sàng! Bắt đầu tạo 4 Saga Event Topics..."
+echo "Kafka đã sẵn sàng! Bắt đầu tạo các Saga Event Topics..."
 
 TOPICS=(
-    "order-events"
-    "inventory-events"
+    "booking-events"
     "payment-events"
     "notification-events"
 )

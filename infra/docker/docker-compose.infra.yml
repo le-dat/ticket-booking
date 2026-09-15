@@ -1,33 +1,33 @@
 version: "3.8"
 
 networks:
-  ecom-infra-network:
-    name: ecom-infra-network
+  ticket-booking-infra-network:
+    name: ticket-booking-infra-network
     driver: bridge
 
 volumes:
   postgres_data:
-    name: ecom_postgres_data
+    name: ticket_booking_postgres_data
   redis_data:
-    name: ecom_redis_data
+    name: ticket_booking_redis_data
   kafka_data:
-    name: ecom_kafka_data
+    name: ticket_booking_kafka_data
 
 services:
   # 1. PostgreSQL 16 Multi-DB
   postgres:
     image: postgres:16-alpine
-    container_name: ecom-postgres
+    container_name: ticket-booking-postgres
     restart: unless-stopped
     networks:
-      - ecom-infra-network
+      - ticket-booking-infra-network
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_super_secret_123}
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
       AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:-auth_pass_secret_123}
-      PRODUCT_DB_PASSWORD: ${PRODUCT_DB_PASSWORD:-product_pass_secret_123}
-      ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD:-order_pass_secret_123}
+      EVENT_DB_PASSWORD: ${EVENT_DB_PASSWORD:-event_pass_secret_123}
+      BOOKING_DB_PASSWORD: ${BOOKING_DB_PASSWORD:-booking_pass_secret_123}
       PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD:-payment_pass_secret_123}
     ports:
       - "127.0.0.1:5432:5432"
@@ -44,10 +44,10 @@ services:
   # 2. Redis 7
   redis:
     image: redis:7-alpine
-    container_name: ecom-redis
+    container_name: ticket-booking-redis
     restart: unless-stopped
     networks:
-      - ecom-infra-network
+      - ticket-booking-infra-network
     command: [
       "redis-server",
       "--appendonly", "yes",
@@ -69,33 +69,30 @@ services:
   # 3. Apache Kafka KRaft
   kafka:
     image: apache/kafka:3.7.0
-    container_name: ecom-kafka
+    container_name: ticket-booking-kafka
     restart: unless-stopped
     networks:
-      - ecom-infra-network
+      - ticket-booking-infra-network
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:29092
-      KAFKA_ADVERTISED_LISTENERS:
-PLAINTEXT://kafka:9092,EXTERNAL://${KAFKA_EXTERNAL_HOST:-localhost}:29092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP:
-CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:29092"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092,EXTERNAL://${KAFKA_EXTERNAL_HOST:-localhost}:29092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT"
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_KRAFT_CLUSTER_ID: ${KAFKA_CLUSTER_ID:-4L622nShTUiBENbYWuzBDg}
+      KAFKA_KRAFT_CLUSTER_ID: "${KAFKA_CLUSTER_ID:-4L622nShTUiBENbYWuzBDg}"
       KAFKA_HEAP_OPTS: "-Xms512M -Xmx512M"
     ports:
       - "127.0.0.1:29092:29092"
     volumes:
       - kafka_data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server
-localhost:9092 || exit 1"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 5
@@ -104,9 +101,9 @@ localhost:9092 || exit 1"]
   # Tự động tạo Topics khi Kafka khởi động xong
   kafka-init-topics:
     image: apache/kafka:3.7.0
-    container_name: ecom-kafka-init-topics
+    container_name: ticket-booking-kafka-init-topics
     networks:
-      - ecom-infra-network
+      - ticket-booking-infra-network
     depends_on:
       kafka:
         condition: service_healthy
@@ -119,15 +116,15 @@ localhost:9092 || exit 1"]
 
   # 4. Kong API Gateway DB-less
   kong:
-    image: kong:3.6-alpine
-    container_name: ecom-kong
+    image: kong:3.6
+    container_name: ticket-booking-kong
     restart: unless-stopped
     networks:
-      - ecom-infra-network
+      - ticket-booking-infra-network
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /opt/kong/kong.yml
-      KONG_ADMIN_LISTEN: 127.0.0.1:8001
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
       KONG_PROXY_LISTEN: 0.0.0.0:8000
     ports:
       - "8000:8000"

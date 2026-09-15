@@ -8,8 +8,8 @@ echo "========================================================="
 # Danh sách: Tên DB : Tên User : Mật khẩu User
 DATABASES_CONFIG=(
     "auth_db:auth_user:${AUTH_DB_PASSWORD:-auth_pass_secret_123}"
-    "product_db:product_user:${PRODUCT_DB_PASSWORD:-product_pass_secret_123}"
-    "order_db:order_user:${ORDER_DB_PASSWORD:-order_pass_secret_123}"
+    "event_db:event_user:${EVENT_DB_PASSWORD:-event_pass_secret_123}"
+    "booking_db:booking_user:${BOOKING_DB_PASSWORD:-booking_pass_secret_123}"
     "payment_db:payment_user:${PAYMENT_DB_PASSWORD:-payment_pass_secret_123}"
 )
 
@@ -42,5 +42,5 @@ EOSQL
 done
 
 echo "========================================================="
-echo "   Đã khởi tạo xong 4 Database với quyền cô lập 100%!   "
+echo "   Đã khởi tạo xong Databases với quyền cô lập 100%!   "
 echo "========================================================="

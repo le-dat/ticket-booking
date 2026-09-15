@@ -1,4 +1,4 @@
-docs/superpowers
+docs
 .agents/
 
 # Dependencies
@@ -22,3 +22,14 @@ build/
 # OS files
 .DS_Store
 Thumbs.db
+
+# --- Python & uv ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

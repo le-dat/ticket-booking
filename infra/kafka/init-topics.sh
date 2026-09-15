@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 set -euo pipefail
 
 BOOTSTRAP_SERVER="${KAFKA_BOOTSTRAP_SERVER:-localhost:9092}"
@@ -8,8 +9,7 @@ echo "Chờ Kafka Broker sẵn sàng tại: $BOOTSTRAP_SERVER..."
 MAX_RETRIES=30
 RETRY_COUNT=0
 
-until /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server "$BOOTSTRAP_SERVER" >
-/dev/null 2>&1; do
+until /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server "$BOOTSTRAP_SERVER" > /dev/null 2>&1; do
     RETRY_COUNT=$((RETRY_COUNT + 1))
     if [ "$RETRY_COUNT" -ge "$MAX_RETRIES" ]; then
         echo "Lỗi: Kafka không phản hồi sau 60s."
@@ -19,11 +19,10 @@ until /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server "$BOOTSTRAP
     sleep 2
 done
 
-echo "Kafka đã sẵn sàng! Bắt đầu tạo 4 Saga Event Topics..."
+echo "Kafka đã sẵn sàng! Bắt đầu tạo các Saga Event Topics..."
 
 TOPICS=(
-    "order-events"
-    "inventory-events"
+    "booking-events"
     "payment-events"
     "notification-events"
 )

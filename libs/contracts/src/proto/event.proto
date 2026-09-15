@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package event;
+
+option go_package = "event-service/gen/proto;eventv1";
+
+// Service định nghĩa các hàm RPC mà event-service (Go) phục vụ cho booking-service (Go)
+service EventService {
+  // Hàm gRPC lấy sơ đồ ghế & trạng thái theo suất chiếu
+  rpc GetShowSeatStatus (GetShowSeatStatusRequest) returns (GetShowSeatStatusResponse);
+
+  // Hàm gRPC xác minh tính hợp lệ và giá tiền của danh sách ghế
+  rpc ValidateAndLockSeats (ValidateSeatsRequest) returns (ValidateSeatsResponse);
+}
+
+message SeatInfo {
+  string seat_id = 1;           // ID ghế (VD: "A-12")
+  string row_name = 2;          // Hàng ghế (VD: "A")
+  int32 seat_number = 3;        // Số ghế (VD: 12)
+  string seat_type = 4;         // Loại ghế: "VIP", "STANDARD", "COUPLE"
+  int64 price_in_cents = 5;     // Giá vé tính theo Integer Cents
+  string status = 6;            // Trạng thái: "AVAILABLE", "HELD", "BOOKED"
+}
+
+message GetShowSeatStatusRequest {
+  string show_id = 1;           // ID Suất chiếu
+}
+
+message GetShowSeatStatusResponse {
+  string show_id = 1;
+  string event_name = 2;
+  int64 show_time = 3;          // Unix Timestamp suất chiếu
+  repeated SeatInfo seats = 4;  // Danh sách ma trận ghế
+}
+
+message ValidateSeatsRequest {
+  string show_id = 1;           // ID Suất chiếu
+  repeated string seat_ids = 2; // Danh sách ID ghế khách muốn chọn
+  string user_id = 3;           // ID Khách hàng
+}
+
+message ValidateSeatsResponse {
+  bool is_valid = 1;            // true nếu tất cả ghế hợp lệ và sẵn sàng để đặt
+  repeated SeatInfo seats = 2;  // Thông tin chi tiết các ghế chọn
+  int64 total_price_in_cents = 3; // Tổng giá tiền các ghế
+  string error_message = 4;     // Thông báo lỗi nếu is_valid = false
+}

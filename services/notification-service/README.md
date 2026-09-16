@@ -1,98 +1,153 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Notification Service (Milestone 5)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+> **Dịch vụ thông báo và phát vé điện tử E-Ticket theo thời gian thực (Realtime Notification & E-Ticket Gateway)**
+> Xây dựng bằng **NestJS 11** (TypeScript), tích hợp **Socket.IO** (hỗ trợ scale ngang qua Redis Adapter), **Kafka Consumer** (`kafkajs`) và bộ sinh mã QR vé điện tử (`qrcode`).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## 🎯 Mục Tiêu & Chức Năng Chính
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+1. **Lắng nghe sự kiện thanh toán từ Kafka:**
+   - Đăng ký topic `payment-events` với consumer group `notification-consumer-group`.
+   - Bắt các sự kiện `PaymentProcessed` có trạng thái `SUCCESS`.
+2. **Sinh mã QR vé điện tử E-Ticket:**
+   - Tạo mã QR chuẩn bảo mật cao (Level `H`) dưới dạng **Base64 Data URL** (`image/png`).
+   - Mã hóa thông tin vé: `bookingId`, `userId`, `txId`, và `timestamp`.
+3. **Phát thông báo Realtime qua WebSocket (Socket.IO):**
+   - Namespace: `/notifications` (cổng `3005`).
+   - Tự động định tuyến thông báo vào room riêng của từng người dùng: `user:{userId}`.
+   - Gửi sự kiện `BookingConfirmed` kèm mã QR Base64 ngay khi thanh toán hoàn tất.
+4. **Cơ chế xác thực Gateway Trusted Header (`X-User-ID`):**
+   - Tận dụng Kong API Gateway xác thực JWT tại biên.
+   - Downstream `notification-service` chỉ đọc và tin tưởng header `X-User-ID` (kế thừa chuẩn từ `event-service` và `booking-service`).
+   - Từ chối ngay lập tức mọi kết nối thiếu định danh người dùng (`missing user identification header`).
+5. **Khả năng mở rộng ngang (Horizontal Scalability):**
+   - Tích hợp `@socket.io/redis-adapter` kết nối Redis Pub/Sub của dự án, cho phép chạy nhiều replica pods mà không làm mất thông báo realtime giữa các client.
 
-## Project setup
+---
 
-```bash
-$ pnpm install
+## 🏗️ Cấu Trúc Thư Mục
+
+```text
+services/notification-service/
+├── .env.example                     # Mẫu biến môi trường
+├── Dockerfile                       # Multi-stage Docker build
+├── package.json
+├── tsconfig.json
+├── README.md                        # Tài liệu hướng dẫn này
+└── src/
+    ├── main.ts                      # Entrypoint NestJS (Port 3005, Redis Adapter, Prefix)
+    ├── app.module.ts                # Root Module kết nối toàn bộ hệ thống
+    ├── auth/
+    │   └── guards/
+    │       ├── trusted-header.guard.ts       # Guard kiểm tra X-User-ID cho HTTP
+    │       └── trusted-header.guard.spec.ts
+    ├── common/
+    │   └── dto/
+    │       └── api-response.dto.ts           # Chuẩn hóa ApiResponse[T]
+    ├── config/
+    │   ├── configuration.ts         # Configuration factory
+    │   └── validation.schema.ts     # Joi schema kiểm tra biến môi trường
+    ├── gateway/
+    │   ├── events.gateway.ts        # WebSocket Gateway Socket.IO (/notifications)
+    │   ├── events.gateway.spec.ts
+    │   ├── events.module.ts
+    │   └── redis-io.adapter.ts      # Redis Adapter cho Socket.IO
+    ├── health/
+    │   ├── health.controller.ts     # /health (Liveness) & /ready (Readiness)
+    │   ├── health.controller.spec.ts
+    │   └── health.module.ts
+    ├── kafka/
+    │   ├── dto/
+    │   │   └── payment-processed-event.dto.ts
+    │   ├── kafka-consumer.service.ts         # Consumer lắng nghe payment-events
+    │   ├── kafka-consumer.service.spec.ts
+    │   └── kafka.module.ts
+    └── qrcode/
+        ├── dto/
+        │   └── ticket-qr-payload.dto.ts
+        ├── qrcode.service.ts        # Sinh mã QR Base64 PNG
+        ├── qrcode.service.spec.ts
+        └── qrcode.module.ts
 ```
 
-## Compile and run the project
+---
 
+## ⚙️ Biến Môi Trường (`.env`)
+
+| Biến Môi Trường | Giá Trị Mặc Định | Ý Nghĩa |
+|---|---|---|
+| `PORT` | `3005` | Cổng HTTP / WebSocket của service |
+| `KAFKA_BROKERS` | `localhost:9092` | Danh sách Kafka broker (phân cách bằng dấu phẩy) |
+| `KAFKA_CLIENT_ID` | `notification-service` | Client ID định danh kết nối Kafka |
+| `KAFKA_GROUP_ID` | `notification-consumer-group` | Consumer Group ID |
+| `KAFKA_TOPIC_PAYMENT_EVENTS`| `payment-events` | Topic lắng nghe sự kiện thanh toán |
+| `REDIS_URL` | `redis://:redis_secret_123@localhost:6379/0` | URL kết nối Redis cho Socket.IO Adapter |
+| `CORS_ORIGINS` | `http://localhost:3000,http://localhost:8000` | Danh sách Origin được phép truy cập |
+
+---
+
+## 🚀 Hướng Dẫn Chạy Cục Bộ (Local Development)
+
+### 1. Cài đặt dependencies:
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+pnpm install
 ```
 
-## Run tests
-
+### 2. Khởi chạy ở chế độ phát triển (Hot Reload):
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+pnpm run start:dev
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
+### 3. Chạy kiểm thử tự động (Unit Tests):
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+pnpm run test
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### 4. Build ứng dụng:
+```bash
+pnpm run build
+```
 
-## Resources
+---
 
-Check out a few resources that may come in handy when working with NestJS:
+## 🔌 Hướng Dẫn Kết Nối WebSocket Client
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Client kết nối tới namespace `/notifications` qua Kong API Gateway (hoặc trực tiếp tới port `3005` khi test):
 
-## Support
+### Ví dụ Client Node.js / Browser (Socket.IO v4):
+```javascript
+import { io } from "socket.io-client";
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+// Khi đi qua Kong Gateway (Port 8000)
+const socket = io("http://localhost:8000/notifications", {
+  extraHeaders: {
+    "X-User-ID": "usr-123456" // Do Kong Gateway inject sau khi verify JWT
+  }
+});
 
-## Stay in touch
+socket.on("connect", () => {
+  console.log("✅ Đã kết nối WebSocket Gateway:", socket.id);
+});
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+// Lắng nghe sự kiện xác nhận vé điện tử kèm mã QR
+socket.on("BookingConfirmed", (data) => {
+  console.log("🎟️ Nhận được vé điện tử:", data);
+  console.log("Mã đơn:", data.bookingId);
+  console.log("QR Code (Base64):", data.qrCode);
+  // Hiển thị trực tiếp lên thẻ <img>: <img src={data.qrCode} />
+});
 
-## License
+socket.on("error", (err) => {
+  console.error("❌ Lỗi kết nối:", err);
+});
+```
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+---
+
+## 🩺 Endpoints Kiểm Tra Sức Khỏe (Health Check)
+
+- **Liveness Probe:** `GET /api/v1/notifications/health`
+  - Trả về mã HTTP `200` và `{ "status": "UP", "service": "notification-service" }`.
+- **Readiness Probe:** `GET /api/v1/notifications/health/ready`
+  - Kiểm tra trạng thái sẵn sàng của kết nối tới Redis và Kafka Consumer.

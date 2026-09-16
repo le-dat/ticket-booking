@@ -1,7 +1,0 @@
-services:
-  integration-test:
-    build:
-      context: .
-      dockerfile: integration-test/Dockerfile
-      network: host
- 

@@ -36,13 +36,13 @@ func NewRouter(app *fiber.App, cfg *config.Config, eventUC usecase.Event, l logg
 	// K8s probe
 	app.Get("/healthz", func(ctx *fiber.Ctx) error { return ctx.SendStatus(http.StatusOK) })
 
-	// Routers
-	apiV1Group := app.Group("/v1")
-	{
+	// Routers v1 (Supports both direct /v1 and Kong Gateway /api/v1 prefixes)
+	for _, prefix := range []string{"/v1", "/api/v1"} {
+		apiGroup := app.Group(prefix)
 		if cfg.Tracing.Enabled {
-			apiV1Group.Use(otelfiber.Middleware())
+			apiGroup.Use(otelfiber.Middleware())
 		}
 
-		v1.NewRoutes(apiV1Group, eventUC, l)
+		v1.NewRoutes(apiGroup, eventUC, l)
 	}
 }

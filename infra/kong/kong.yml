@@ -36,7 +36,7 @@ services:
     plugins:
       - name: rate-limiting
         config:
-          minute: 120
+          minute: 10000
           policy: local
 
   # 4. Payment Service (FastAPI - Port 3004)
@@ -55,6 +55,10 @@ services:
       - name: notification-routes
         paths:
           - /api/v1/notifications
+          - /socket.io
+        protocols:
+          - http
+          - https
         strip_path: false
 
 plugins:

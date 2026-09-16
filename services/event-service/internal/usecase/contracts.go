@@ -19,6 +19,7 @@ type (
 		ListEvents(ctx context.Context, limit, offset int) ([]entity.Event, error)
 		GetEventDetail(ctx context.Context, eventID string) (entity.Event, []entity.Show, error)
 		GetShowSeats(ctx context.Context, showID string) ([]entity.Seat, error)
-		LockSeats(ctx context.Context, showID string, seatIDs []string, userID string) (bool, string, error)
+		LockSeats(ctx context.Context, showID string, seatIDs []string, userID string) (bool, string, []entity.Seat, float64, error)
+		ReleaseSeats(ctx context.Context, showID string, seatIDs []string, userID string) (bool, string, error)
 	}
 )

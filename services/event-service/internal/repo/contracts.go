@@ -29,6 +29,7 @@ type (
 		// Seat
 		BatchCreateSeats(ctx context.Context, seats []entity.Seat) error
 		GetSeatsByShowID(ctx context.Context, showID string) ([]entity.Seat, error)
-		LockSeats(ctx context.Context, showID string, seatIDs []string, userID string) (bool, string, error)
+		LockSeats(ctx context.Context, showID string, seatIDs []string, userID string) (bool, string, []entity.Seat, float64, error)
+		ReleaseSeats(ctx context.Context, showID string, seatIDs []string, userID string) (bool, string, error)
 	}
 )

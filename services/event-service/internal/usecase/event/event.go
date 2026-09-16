@@ -96,6 +96,10 @@ func (uc *UseCase) GetShowSeats(ctx context.Context, showID string) ([]entity.Se
 	return uc.repo.GetSeatsByShowID(ctx, showID)
 }
 
-func (uc *UseCase) LockSeats(ctx context.Context, showID string, seatIDs []string, userID string) (bool, string, error) {
+func (uc *UseCase) LockSeats(ctx context.Context, showID string, seatIDs []string, userID string) (bool, string, []entity.Seat, float64, error) {
 	return uc.repo.LockSeats(ctx, showID, seatIDs, userID)
+}
+
+func (uc *UseCase) ReleaseSeats(ctx context.Context, showID string, seatIDs []string, userID string) (bool, string, error) {
+	return uc.repo.ReleaseSeats(ctx, showID, seatIDs, userID)
 }

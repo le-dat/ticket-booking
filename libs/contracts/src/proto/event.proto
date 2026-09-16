@@ -11,6 +11,9 @@ service EventService {
 
   // Hàm gRPC xác minh tính hợp lệ và giá tiền của danh sách ghế
   rpc ValidateAndLockSeats (ValidateSeatsRequest) returns (ValidateSeatsResponse);
+
+  // Hàm gRPC giải phóng ghế khi đơn hàng bị hủy hoặc hết hạn
+  rpc ReleaseSeats (ReleaseSeatsRequest) returns (ReleaseSeatsResponse);
 }
 
 message SeatInfo {
@@ -44,4 +47,15 @@ message ValidateSeatsResponse {
   repeated SeatInfo seats = 2;  // Thông tin chi tiết các ghế chọn
   int64 total_price_in_cents = 3; // Tổng giá tiền các ghế
   string error_message = 4;     // Thông báo lỗi nếu is_valid = false
+}
+
+message ReleaseSeatsRequest {
+  string show_id = 1;
+  repeated string seat_ids = 2;
+  string user_id = 3;
+}
+
+message ReleaseSeatsResponse {
+  bool success = 1;
+  string message = 2;
 }

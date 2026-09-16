@@ -34,5 +34,4 @@ venv/
 .mypy_cache/
 .ruff_cache/
 
-/services/payment-service
 /services/notification-service

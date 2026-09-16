@@ -134,34 +134,39 @@ func (r *Repo) GetSeatsByShowID(ctx context.Context, showID string) ([]entity.Se
 	return seats, nil
 }
 
-func (r *Repo) LockSeats(ctx context.Context, showID string, seatIDs []string, userID string) (bool, string, error) {
+func (r *Repo) LockSeats(ctx context.Context, showID string, seatIDs []string, userID string) (bool, string, []entity.Seat, float64, error) {
 	tx, err := r.Pool.Begin(ctx)
 	if err != nil {
-		return false, "Không thể khởi tạo transaction", err
+		return false, "Không thể khởi tạo transaction", nil, 0, err
 	}
 	defer tx.Rollback(ctx)
 
-	queryCheck := `SELECT id, status FROM seats WHERE show_id = $1 AND id = ANY($2) FOR UPDATE`
+	queryCheck := `SELECT id, show_id, seat_number, row_name, col_index, price, status 
+                   FROM seats WHERE show_id = $1 AND id = ANY($2) FOR UPDATE`
 	rows, err := tx.Query(ctx, queryCheck, showID, seatIDs)
 	if err != nil {
-		return false, "Lỗi truy vấn trạng thái ghế", err
+		return false, "Lỗi truy vấn trạng thái ghế", nil, 0, err
 	}
 	defer rows.Close()
 
-	count := 0
+	var lockedSeats []entity.Seat
+	var totalPrice float64
+
 	for rows.Next() {
-		var id, status string
-		if err := rows.Scan(&id, &status); err != nil {
-			return false, "Lỗi scan dữ liệu ghế", err
+		var s entity.Seat
+		if err := rows.Scan(&s.ID, &s.ShowID, &s.SeatNumber, &s.RowName, &s.ColIndex, &s.Price, &s.Status); err != nil {
+			return false, "Lỗi scan dữ liệu ghế", nil, 0, err
 		}
-		if status != entity.SeatStatusAvailable {
-			return false, fmt.Sprintf("Ghế %s không còn sẵn có (trạng thái: %s)", id, status), nil
+		if s.Status != entity.SeatStatusAvailable {
+			return false, fmt.Sprintf("Ghế %s (%s) không còn sẵn có (trạng thái: %s)", s.SeatNumber, s.ID, s.Status), nil, 0, nil
 		}
-		count++
+		totalPrice += s.Price
+		s.Status = entity.SeatStatusHeld
+		lockedSeats = append(lockedSeats, s)
 	}
 
-	if count != len(seatIDs) {
-		return false, "Một số danh mục ghế không tồn tại", nil
+	if len(lockedSeats) != len(seatIDs) {
+		return false, "Một số danh mục ghế không tồn tại", nil, 0, nil
 	}
 
 	holdExpiry := time.Now().Add(10 * time.Minute)
@@ -169,12 +174,34 @@ func (r *Repo) LockSeats(ctx context.Context, showID string, seatIDs []string, u
 	               WHERE show_id = $4 AND id = ANY($5)`
 	_, err = tx.Exec(ctx, queryUpdate, entity.SeatStatusHeld, userID, holdExpiry, showID, seatIDs)
 	if err != nil {
-		return false, "Lỗi cập nhật trạng thái giữ ghế", err
+		return false, "Lỗi cập nhật trạng thái giữ ghế", nil, 0, err
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return false, "Lỗi commit transaction giữ ghế", err
+		return false, "Lỗi commit transaction giữ ghế", nil, 0, err
 	}
 
-	return true, "Giữ ghế thành công trong 10 phút", nil
+	return true, "Giữ ghế thành công trong 10 phút", lockedSeats, totalPrice, nil
 }
+
+func (r *Repo) ReleaseSeats(ctx context.Context, showID string, seatIDs []string, userID string) (bool, string, error) {
+	queryUpdate := `UPDATE seats SET status = $1, held_by_user_id = NULL, hold_expires_at = NULL, updated_at = NOW() 
+	                WHERE show_id = $2 AND id = ANY($3) AND status = $4`
+	args := []any{entity.SeatStatusAvailable, showID, seatIDs, entity.SeatStatusHeld}
+	if userID != "" {
+		queryUpdate += ` AND held_by_user_id = $5`
+		args = append(args, userID)
+	}
+
+	res, err := r.Pool.Exec(ctx, queryUpdate, args...)
+	if err != nil {
+		return false, "Lỗi giải phóng ghế", err
+	}
+
+	if res.RowsAffected() == 0 {
+		return true, "Không có ghế nào cần giải phóng hoặc ghế đã hết hạn", nil
+	}
+
+	return true, fmt.Sprintf("Đã giải phóng %d ghế thành công", res.RowsAffected()), nil
+}
+

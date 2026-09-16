@@ -48,15 +48,47 @@ func (h *EventGRPCHandler) GetShowSeatStatus(ctx context.Context, req *pb.GetSho
 }
 
 func (h *EventGRPCHandler) ValidateAndLockSeats(ctx context.Context, req *pb.ValidateSeatsRequest) (*pb.ValidateSeatsResponse, error) {
-	ok, msg, err := h.u.LockSeats(ctx, req.GetShowId(), req.GetSeatIds(), req.GetUserId())
+	ok, msg, seats, totalPrice, err := h.u.LockSeats(ctx, req.GetShowId(), req.GetSeatIds(), req.GetUserId())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Lỗi xử lý lock ghế: %v", err)
 	}
 
+	if !ok {
+		return &pb.ValidateSeatsResponse{
+			IsValid:      false,
+			ErrorMessage: msg,
+		}, nil
+	}
+
+	protoSeats := make([]*pb.SeatInfo, 0, len(seats))
+	for _, s := range seats {
+		protoSeats = append(protoSeats, &pb.SeatInfo{
+			SeatId:       s.ID,
+			RowName:      s.RowName,
+			SeatNumber:   int32(s.ColIndex),
+			SeatType:     "STANDARD",
+			PriceInCents: int64(s.Price * 100),
+			Status:       s.Status,
+		})
+	}
+
 	return &pb.ValidateSeatsResponse{
-		IsValid:           ok,
+		IsValid:           true,
 		ErrorMessage:      msg,
-		TotalPriceInCents: 0,
-		Seats:             nil,
+		TotalPriceInCents: int64(totalPrice * 100),
+		Seats:             protoSeats,
 	}, nil
 }
+
+func (h *EventGRPCHandler) ReleaseSeats(ctx context.Context, req *pb.ReleaseSeatsRequest) (*pb.ReleaseSeatsResponse, error) {
+	ok, msg, err := h.u.ReleaseSeats(ctx, req.GetShowId(), req.GetSeatIds(), req.GetUserId())
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Lỗi xử lý giải phóng ghế: %v", err)
+	}
+
+	return &pb.ReleaseSeatsResponse{
+		Success: ok,
+		Message: msg,
+	}, nil
+}
+
